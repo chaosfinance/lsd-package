@@ -4,6 +4,7 @@ import {
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
   Transaction,
+  TransactionInstruction,
   TransactionResponse,
 } from "@solana/web3.js";
 import {
@@ -91,7 +92,6 @@ export const stakeToken = async (
     }
 
     const tokenProgramId = await getTokenProgramId(stakingTokenMintAddress);
-    console.log({ tokenProgramId });
     if (!tokenProgramId) return;
 
     const lsdProgramPubkey = new PublicKey(lsdProgramId);
@@ -508,8 +508,6 @@ export const withdrawToken = async (programIds: ProgramIds) => {
       }
     );
 
-    const transaction = new Transaction();
-
     const stakeManagerPubkey = new PublicKey(stakeManagerAddress);
     const stakingTokenMintPubkey = new PublicKey(stakingTokenMintAddress);
     const tokenProgramPubkey = new PublicKey(tokenProgramId);
@@ -527,19 +525,7 @@ export const withdrawToken = async (programIds: ProgramIds) => {
       tokenProgramPubkey
     );
 
-    const userStakingTokenAccount = await connection.getAccountInfo(
-      userStakingTokenAddress
-    );
-    if (!userStakingTokenAccount) {
-      const ataInstruction = createAssociatedTokenAccountInstruction(
-        _provider.publicKey,
-        userStakingTokenAddress,
-        _provider.publicKey,
-        stakingTokenMintPubkey,
-        tokenProgramPubkey
-      );
-      transaction.add(ataInstruction);
-    }
+    const instructions: TransactionInstruction[] = [];
 
     const accountRequests = unstakeAccounts.map((account) => {
       return (async () => {
@@ -566,39 +552,61 @@ export const withdrawToken = async (programIds: ProgramIds) => {
               systemProgram: SystemProgram.programId,
             })
             .instruction();
-          transaction.add(anchorInstruction);
+          instructions.push(anchorInstruction);
         }
       })();
     });
 
     await Promise.all(accountRequests);
 
-    const txHash = await sendSolanaTransaction(
-      transaction,
-      connection,
-      _provider.signTransaction,
-      _provider.publicKey
-    );
-
-    let retryCount = 0;
-    let transactionDetail: TransactionResponse | null | undefined = undefined;
-
-    while (retryCount < TX_RETRY_COUNT && txHash) {
-      retryCount++;
-      transactionDetail = await connection.getTransaction(txHash, {
-        commitment: "finalized",
-      });
-      if (transactionDetail) {
-        break;
+    const txHashs: string[] = [];
+    const chunkSize = 10;
+    for (let i = 0; i < instructions.length; i += chunkSize) {
+      const tx = new Transaction();
+      const userStakingTokenAccount = await connection.getAccountInfo(
+        userStakingTokenAddress
+      );
+      if (!userStakingTokenAccount) {
+        const ataInstruction = createAssociatedTokenAccountInstruction(
+          _provider.publicKey,
+          userStakingTokenAddress,
+          _provider.publicKey,
+          stakingTokenMintPubkey,
+          tokenProgramPubkey
+        );
+        tx.add(ataInstruction);
       }
-      await sleep(3000);
-    }
 
-    if (!transactionDetail || transactionDetail.meta?.err) {
-      throw new Error(ERR_TX_FAILED);
-    }
+      tx.add(...instructions.slice(i, i + chunkSize));
 
-    return txHash;
+      const txHash = await sendSolanaTransaction(
+        tx,
+        connection,
+        _provider.signTransaction,
+        _provider.publicKey
+      );
+
+      let retryCount = 0;
+      let transactionDetail: TransactionResponse | null | undefined = undefined;
+
+      while (retryCount < TX_RETRY_COUNT && txHash) {
+        retryCount++;
+        transactionDetail = await connection.getTransaction(txHash, {
+          commitment: "finalized",
+        });
+        if (transactionDetail) {
+          break;
+        }
+        await sleep(3000);
+      }
+
+      if (!transactionDetail || transactionDetail.meta?.err) {
+        throw new Error(ERR_TX_FAILED);
+      }
+
+      txHashs.push(txHash);
+    }
+    return txHashs;
   } catch (err: any) {
     if (isSolanaCancelError(err)) {
       throw new Error(ERR_TX_REJECTED);

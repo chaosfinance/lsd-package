@@ -1,26 +1,26 @@
 {
-	"name": "@chaosfinance/sonic-lsd",
-	"version": "1.0.34",
-	"license": "GPL-3.0-only",
-	"author": "jeff2857",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/chaosfinance/lsd-package"
-	},
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
-	"scripts": {
-		"build": "yarn tsc",
-		"pub": "npm publish"
-	},
-	"dependencies": {
-		"@coral-xyz/anchor": "0.29.0",
-		"@solana/spl-memo": "^0.2.5",
-		"@solana/spl-token": "^0.4.8",
-		"@solana/web3.js": "^1.95.2"
-	},
-	"devDependencies": {
-		"eslint": "^8.47.0",
-		"typescript": "^5.1.6"
-	}
+  "name": "@chaosfinance/sonic-lsd",
+  "version": "1.0.35",
+  "license": "GPL-3.0-only",
+  "author": "jeff2857",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaosfinance/lsd-package"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "yarn tsc",
+    "pub": "npm publish"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.29.0",
+    "@solana/spl-memo": "^0.2.5",
+    "@solana/spl-token": "^0.4.8",
+    "@solana/web3.js": "^1.95.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.47.0",
+    "typescript": "^5.1.6"
+  }
 }
