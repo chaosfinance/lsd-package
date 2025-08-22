@@ -10,6 +10,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddress,
+  getMint,
 } from "@solana/spl-token";
 import { createMemoInstruction } from "@solana/spl-memo";
 import {
@@ -135,8 +136,18 @@ export const stakeToken = async (
       transaction.add(createInstruction);
     }
 
+    const mintInfo = await getMint(
+      connection,
+      stakingTokenMintPubkey,
+      undefined,
+      tokenProgramPubkey
+    );
+    if (!mintInfo) return;
+
+    const { decimals } = mintInfo;
+
     const anchorInstruction = await anchorProgram.program.methods
-      .stake(toChainAmount(amount))
+      .stake(toChainAmount(amount, decimals))
       .accounts({
         user: _provider.publicKey,
         rentPayer: _provider.publicKey,
@@ -266,8 +277,18 @@ export const unstakeLstToken = async (
     // });
     // transaction.add(addPriorityFee);
 
+    const mintInfo = await getMint(
+      connection,
+      new PublicKey(stakingTokenMintAddress),
+      undefined,
+      tokenProgramPubkey
+    );
+    if (!mintInfo) return;
+
+    const { decimals } = mintInfo;
+
     const anchorInstruction = await anchorProgram.program.methods
-      .unstake(toChainAmount(amount))
+      .unstake(toChainAmount(amount, decimals))
       .accounts({
         user: _provider.publicKey,
         rentPayer: _provider.publicKey,

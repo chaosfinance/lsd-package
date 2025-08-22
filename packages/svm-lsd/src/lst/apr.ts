@@ -1,7 +1,14 @@
+import { getMint } from "@solana/spl-token";
 import { AnchorProgram } from "../anchorProgram";
-import { ProgramIds, provider } from "../provider";
+import {
+  getConnection,
+  getTokenProgramId,
+  ProgramIds,
+  provider,
+} from "../provider";
 import { isEmptyString } from "../utils/commonUtil";
 import { chainAmountToHuman } from "../utils/numUtil";
+import { PublicKey } from "@solana/web3.js";
 
 /**
  * Get LST APR
@@ -16,13 +23,27 @@ export const getLstApr = async (programIds: ProgramIds, defaultApr = 0.09) => {
   const anchorProgram = new AnchorProgram(programIds);
   await anchorProgram.init();
 
-  const { program } = anchorProgram;
+  const { program, stakingTokenMintAddress } = anchorProgram;
   if (!program) return apr;
+
+  const connection = getConnection();
+  if (!connection) return apr;
 
   try {
     const stakeManagerAccount = await program.account.stakeManager.fetch(
       stakeManagerAddress
     );
+
+    const tokenProgramId = await getTokenProgramId(stakingTokenMintAddress);
+    if (!tokenProgramId) return apr;
+
+    const mintInfo = await getMint(
+      connection,
+      new PublicKey(stakingTokenMintAddress),
+      undefined,
+      new PublicKey(tokenProgramId)
+    );
+    const { decimals } = mintInfo;
 
     const epochRates = stakeManagerAccount.eraRates;
     if (!epochRates) return apr;
@@ -38,10 +59,10 @@ export const getLstApr = async (programIds: ProgramIds, defaultApr = 0.09) => {
     const endEraIndex = epochRates.length - 1;
 
     const beginRate = Number(
-      chainAmountToHuman(epochRates[beginEraIndex].rate.toString())
+      chainAmountToHuman(epochRates[beginEraIndex].rate.toString(), decimals)
     );
     const endRate = Number(
-      chainAmountToHuman(epochRates[endEraIndex].rate.toString())
+      chainAmountToHuman(epochRates[endEraIndex].rate.toString(), decimals)
     );
 
     const timeDiff = stakeManagerAccount.eraSeconds * eraLength;

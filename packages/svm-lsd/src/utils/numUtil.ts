@@ -8,19 +8,21 @@ export const isValidNum = (num: string | number) => {
   return true;
 };
 
-export const chainAmountToHuman = (num: string | number) => {
+export const chainAmountToHuman = (num: string | number, decimals?: number) => {
   if (!isValidNum(num)) {
     return "--";
   }
-  const factor = LAMPORTS_PER_SOL;
+  const factor = decimals ? 10 ** decimals : LAMPORTS_PER_SOL;
 
   return Number(num) / Number(factor) + "";
 };
 
-export const toChainAmount = (num: string | number) => {
+export const toChainAmount = (num: string | number, decimals?: number) => {
   if (!isValidNum(num)) {
     return new BN(0);
   }
 
-  return new BN((Number(num) * LAMPORTS_PER_SOL).toFixed(0));
+  const factor = decimals ? 10 ** decimals : LAMPORTS_PER_SOL;
+
+  return new BN((Number(num) * factor).toFixed(0));
 };

@@ -1,8 +1,15 @@
+import { getMint } from "@solana/spl-token";
 import { AnchorProgram } from "../anchorProgram";
 import { ERR_EMPTY_PROGRAM_ID } from "../constants";
-import { getConnection, ProgramIds, provider } from "../provider";
+import {
+  getConnection,
+  getTokenProgramId,
+  ProgramIds,
+  provider,
+} from "../provider";
 import { isEmptyString } from "../utils/commonUtil";
 import { chainAmountToHuman } from "../utils/numUtil";
+import { PublicKey } from "@solana/web3.js";
 
 /**
  * Get LST rate
@@ -16,7 +23,7 @@ export const getLstRate = async (programIds: ProgramIds) => {
 
   const anchorProgram = new AnchorProgram(programIds);
   await anchorProgram.init();
-  const { program } = anchorProgram;
+  const { program, stakingTokenMintAddress } = anchorProgram;
   const connection = getConnection();
   if (!program || !connection) return;
 
@@ -24,5 +31,18 @@ export const getLstRate = async (programIds: ProgramIds) => {
     stakeManagerAddress
   );
 
-  return chainAmountToHuman(stakeManagerAccount.rate.toString());
+  const tokenProgramId = await getTokenProgramId(stakingTokenMintAddress);
+  if (!tokenProgramId) return;
+
+  const mintInfo = await getMint(
+    connection,
+    new PublicKey(stakingTokenMintAddress),
+    undefined,
+    new PublicKey(tokenProgramId)
+  );
+  if (!mintInfo) return;
+
+  const { decimals } = mintInfo;
+
+  return chainAmountToHuman(stakeManagerAccount.rate.toString(), decimals);
 };
